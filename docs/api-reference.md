@@ -27,31 +27,88 @@ Action item detector for proactive suggestions (KIK-472, KIK-489).
 
 Shared utility functions used across multiple core modules.
 
+- `graceful_degradation(default=None)` — Decorator that catches all exceptions and returns a default value (KIK-579).
 - `is_cash(symbol: str) -> bool` — Check if symbol represents a cash position (e.g., JPY.CASH, USD.CASH).
 - `is_etf(stock_detail: dict) -> bool` — Return True if stock_detail looks like an ETF (lacks fundamental data).
 - `finite_or_none(v)` — Return v if finite number, else None.
 - `safe_float(value, default: float=0.0) -> float` — Convert value to float safely, returning default on failure.
 
-### src.core.health_check (KIK-469: ETF対応+PF統合)
+### src.core.health.alert
 
-Portfolio health check engine (KIK-356).
+Alert level computation for portfolio health checks (KIK-576).
 
-- `check_trend_health(hist: Optional[pd.DataFrame], cross_lookback: int | None=None) -> dict` — Analyze trend health from price history.
-- `check_change_quality(stock_detail: dict) -> dict` — Evaluate change quality (alpha signal) of a holding.
 - `compute_alert_level(trend_health: dict, change_quality: dict, stock_detail=None, return_stability: dict | None=None, is_small_cap: bool=False) -> dict` — Compute 3-level alert from trend and change quality.
-- `run_health_check(csv_path: str, client) -> dict` — Run health check on all portfolio holdings.
 
-### src.core.health_etf (KIK-469/512: ETFヘルスチェック)
+### src.core.health.community
 
-ETF-specific health check logic (KIK-469).
+Community concentration analysis for portfolio health checks (KIK-549, KIK-576).
+
+
+### src.core.health.etf
+
+ETF-specific health check logic (KIK-469, KIK-576).
 
 - `check_etf_health(stock_detail: dict) -> dict` — ETF固有のヘルスチェック (KIK-469).
 
-### src.core.health_labels (KIK-371/512: 長期適性ラベル生成)
+### src.core.health.labels
 
-Label and verdict generation for portfolio health checks (KIK-371).
+Label and verdict generation for portfolio health checks (KIK-371, KIK-576).
 
 - `check_long_term_suitability(stock_detail: dict, shareholder_return_data: dict | None=None) -> dict` — Evaluate long-term holding suitability from fundamental data.
+
+### src.core.health.quality
+
+Change quality evaluation for portfolio health checks (KIK-576).
+
+- `check_change_quality(stock_detail: dict) -> dict` — Evaluate change quality (alpha signal) of a holding.
+
+### src.core.health.runner
+
+Portfolio health check orchestrator (KIK-576).
+
+- `run_health_check(csv_path: str, client) -> dict` — Run health check on all portfolio holdings.
+
+### src.core.health.theme
+
+Theme exposure analysis for portfolio health checks (KIK-604).
+
+
+### src.core.health.theme_balance (KIK-605: テーマバランス制御)
+
+Theme balance checks for portfolio health (KIK-605).
+
+- `check_theme_concentration(positions: list[dict], themes_map: dict[str, list[str]]) -> list[dict]` — Check if any theme is over-concentrated in PF.
+- `check_sector_relative_per(positions: list[dict], sector_median_per: dict[str, float]) -> list[dict]` — Flag positions whose PER is far above sector median.
+- `detect_theme_cooling(current_trends: list[dict], previous_trends: list[dict]) -> list[dict]` — Detect themes that are cooling down.
+
+### src.core.health.trend
+
+Trend health analysis for portfolio health checks (KIK-576).
+
+- `check_trend_health(hist: Optional[pd.DataFrame], cross_lookback: int | None=None) -> dict` — Analyze trend health from price history.
+
+### src.core.health_check (KIK-469: ETF対応+PF統合)
+
+Backward-compatible re-export (KIK-576). Import from src.core.health directly.
+
+
+### src.core.health_etf (KIK-469/512: ETFヘルスチェック)
+
+Backward-compatible re-export (KIK-576). Import from src.core.health.etf directly.
+
+
+### src.core.health_labels (KIK-371/512: 長期適性ラベル生成)
+
+Backward-compatible re-export (KIK-576). Import from src.core.health.labels directly.
+
+
+### src.core.market_dashboard
+
+Market dashboard — quantitative market overview (KIK-567).
+
+- `compute_fear_greed(client=None) -> dict` — Compute a Fear & Greed score from 6 market indicators.
+- `get_vix_history(client=None, period: str='1mo') -> dict` — Get VIX history with phase classification.
+- `get_yield_curve(client=None) -> dict` — Get US Treasury yield curve with spread analysis.
 
 ### src.core.models
 
@@ -247,15 +304,25 @@ Bridge between portfolio management and stress test skills (KIK-342 -> KIK-339).
 - `portfolio_to_stress_args(csv_path: Optional[str]=None) -> dict` — Generate stress-test arguments from portfolio.csv.
 - `build_stress_test_command(csv_path: Optional[str]=None, scenario: Optional[str]=None, base_shock: float=-0.2) -> str` — Build a full stress-test command string from portfolio CSV.
 
-### src.core.portfolio.portfolio_manager
+### src.core.portfolio.portfolio_io
 
-Portfolio management core logic (KIK-342).
+Portfolio I/O: CSV load/save and position operations (KIK-578 split).
 
 - `load_portfolio(csv_path: str=DEFAULT_CSV_PATH) -> list[dict]` — CSVからポートフォリオを読み込む。
 - `save_portfolio(portfolio: list[dict], csv_path: str=DEFAULT_CSV_PATH) -> None` — ポートフォリオをCSVに保存。
 - `add_position(csv_path: str, symbol: str, shares: int, cost_price: float, cost_currency: str='JPY', purchase_date: Optional[str]=None, memo: str='') -> dict` — 新規ポジション追加 or 既存ポジションへの追加購入。
 - `sell_position(csv_path: str, symbol: str, shares: int, sell_price: Optional[float]=None, sell_date: Optional[str]=None) -> dict` — 売却。shares分を減算。0以下になったら行を削除。
 - `get_performance_review(year: Optional[int]=None, symbol: Optional[str]=None, base_dir: str='data/history') -> dict` — 売買パフォーマンスレビュー集計 (KIK-441)。
+
+### src.core.portfolio.portfolio_manager
+
+Portfolio management core logic (KIK-342).
+
+
+### src.core.portfolio.portfolio_query
+
+Portfolio query: snapshot, structure analysis, and merge (KIK-578 split).
+
 - `get_snapshot(csv_path: str, client) -> dict` — スナップショット生成。
 - `get_structure_analysis(csv_path: str, client) -> dict` — 構造分析。PFの偏りを自動集計。
 - `get_portfolio_shareholder_return(csv_path: str, client) -> dict` — Calculate weighted-average shareholder return for the portfolio.
@@ -286,7 +353,7 @@ Portfolio compound interest simulation engine (KIK-366).
 
 ### src.core.portfolio.small_cap (KIK-438: 小型株アロケーション)
 
-Small-cap classification and allocation rules (KIK-438).
+Small-cap classification and allocation rules (KIK-438/574).
 
 - `classify_market_cap(market_cap: float | None, region_code: str) -> str` — Classify stock size from market cap and region code.
 - `check_small_cap_allocation(small_cap_weight: float) -> dict` — Check portfolio-level small-cap allocation.
@@ -670,6 +737,10 @@ Ticker symbol utilities: currency/country inference from symbol suffixes.
 
 - `extract_symbol(text: str) -> Optional[str]` — Extract a ticker symbol from text (e.g. 7203.T, AAPL, D05.SI).
 - `extract_all_symbols(text: str) -> list[str]` — Extract all unique ticker symbols from text.
+- `get_lot_size(symbol: str) -> int` — Get minimum tradable lot size for a symbol.
+- `lot_cost(symbol: str, price: float) -> float` — Calculate the cost of 1 lot (minimum tradable unit).
+- `round_to_lot_size(shares: int, symbol: str) -> int` — Round shares to the nearest valid lot size multiple.
+- `validate_lot_size(shares: int, symbol: str) -> None` — Validate that shares is a valid multiple of the lot size.
 - `cash_currency(symbol: str) -> str` — Extract currency from cash symbol (e.g., 'JPY.CASH' -> 'JPY').
 - `infer_currency(symbol: str, info: dict | None=None) -> str` — Infer the currency from the ticker symbol suffix.
 - `infer_region_code(symbol: str) -> str` — Infer lowercase region code from ticker suffix (KIK-438).
@@ -683,18 +754,31 @@ Value trap detection (extracted from health_check.py, KIK-392).
 
 ## Data Layer
 
-### src.data.auto_context
-
-Backward-compatible shim (KIK-517). Real module: src.data.context.auto_context
-
-
 ### src.data.context.auto_context (KIK-411/420: ハイブリッド検索)
 
 Auto graph context injection for user prompts (KIK-411/420/427).
 
+- `get_context(user_input: str) -> Optional[dict]` — Auto-detect symbol in user input and retrieve graph context.
+
+### src.data.context.constraint_extractor
+
+Constraint extraction from investment lessons for plan-check flow (KIK-596).
+
+- `classify_action_type(user_query: str) -> str` — Classify user query into an action type.
+- `extract_constraints(user_query: str, max_constraints: int=5) -> dict` — Extract constraints from investment lessons for the given user query.
+- `format_constraints_markdown(result: dict) -> str` — Format constraint extraction result as markdown.
+
+### src.data.context.context_formatter
+
+Markdown formatting for graph context output (KIK-411/427/428).
+
+
+### src.data.context.freshness
+
+Freshness label and threshold logic for graph context (KIK-427/428).
+
 - `freshness_label(date_str: str) -> str` — Return freshness label for a date string.
 - `freshness_action(label: str) -> str` — Return recommended action for a freshness label.
-- `get_context(user_input: str) -> Optional[dict]` — Auto-detect symbol in user input and retrieve graph context.
 
 ### src.data.context.grok_context (KIK-488: Neo4j知識→Grokプロンプト注入)
 
@@ -719,6 +803,11 @@ GraphRAG context aggregator for screening output (KIK-452).
 
 - `get_screening_graph_context(symbols: list[str], sectors: list[str], days: int=7) -> dict` — Aggregate knowledge graph context for a set of screened symbols.
 
+### src.data.context.skill_recommender
+
+Graph-state analysis and skill recommendation (KIK-411/414).
+
+
 ### src.data.context.summary_builder (KIK-420: セマンティックサマリー生成)
 
 Semantic summary template builders for Neo4j vector search (KIK-420).
@@ -734,6 +823,11 @@ Semantic summary template builders for Neo4j vector search (KIK-420).
 - `build_stress_test_summary(test_date: str, scenario: str='', portfolio_impact: float=0, symbol_count: int=0) -> str` — Build summary for a StressTest node (KIK-428).
 - `build_forecast_summary(forecast_date: str, optimistic: float | None=None, base: float | None=None, pessimistic: float | None=None, symbol_count: int=0) -> str` — Build summary for a Forecast node (KIK-428).
 
+### src.data.context.vector_search
+
+TEI vector search and result merging for hybrid context retrieval (KIK-420).
+
+
 ### src.data.embedding_client (KIK-420: TEIベクトル検索)
 
 TEI (Text Embeddings Inference) REST API client (KIK-420).
@@ -741,16 +835,6 @@ TEI (Text Embeddings Inference) REST API client (KIK-420).
 - `is_available() -> bool` — Check if TEI service is reachable (result cached for 30s).
 - `get_embedding(text: str) -> list[float] | None` — Get embedding vector from TEI. Returns None on failure.
 - `reset_cache()` — Reset availability cache (for testing).
-
-### src.data.graph_linker
-
-Backward-compatible shim (KIK-517). Real module: src.data.graph_store.linker
-
-
-### src.data.graph_nl_query
-
-Backward-compatible shim (KIK-517). Real module: src.data.graph_query.nl_query
-
 
 ### src.data.graph_query._common
 
@@ -767,20 +851,33 @@ ActionItem graph queries (KIK-472).
 
 Community detection via co-occurrence analysis (KIK-547).
 
+
+### src.data.graph_query.community_detect
+
+Community detection pipeline via co-occurrence analysis (KIK-578 split).
+
 - `detect_communities(similarity_cutoff: float=0.3, top_k: int=10, resolution: float=1.0) -> list[dict]` — Run community detection pipeline.
+- `discover_hidden_themes() -> list[dict]` — Discover hidden themes from community patterns (KIK-550).
+- `label_community(members: list[str], session, fallback_id: int=0) -> dict` — Generate a label for a community with confidence score (KIK-550).
+
+### src.data.graph_query.community_query
+
+Community query functions (KIK-578 split from community.py).
+
 - `get_communities(level: int=0) -> list[dict]` — Retrieve existing Community nodes from Neo4j.
 - `get_stock_community(symbol: str) -> Optional[dict]` — Get the community a stock belongs to.
 - `get_similar_stocks(symbol: str, top_k: int=5, similarity_cutoff: float=0.3) -> list[dict]` — Get stocks most similar to the given symbol.
 - `update_stock_community(symbol: str, similarity_cutoff: float=0.3) -> Optional[dict]` — Assign a stock to the best-matching existing community.
-- `label_community(members: list[str], session, fallback_id: int=0) -> dict` — Generate a label for a community with confidence score (KIK-550).
-- `discover_hidden_themes() -> list[dict]` — Discover hidden themes from community patterns (KIK-550).
+- `get_community_lessons(symbol: str, limit: int=3) -> list[dict]` — Get lessons from peer stocks in the same community (KIK-569).
 
 ### src.data.graph_query.market
 
-MarketContext/Indicator/UpcomingEvent graph queries.
+MarketContext/Indicator/UpcomingEvent/ThemeTrend graph queries.
 
 - `get_recent_market_context() -> Optional[dict]` — Get the most recent MarketContext node.
 - `get_upcoming_events(limit: int=10, within_days: int=None) -> list[dict]` — Get UpcomingEvent nodes from the most recent MarketContext.
+- `get_theme_trends(limit: int=20, region: str='') -> list[dict]` — Get recent theme trend history.
+- `get_theme_trend_diff() -> dict` — Compare the latest two theme detections to find rising/falling themes.
 
 ### src.data.graph_query.nl_query (KIK-411: 自然言語グラフクエリ)
 
@@ -794,6 +891,7 @@ Natural language → graph query dispatcher (KIK-409 Phase 1).
 Portfolio/Trade/HealthCheck/Forecast graph queries.
 
 - `get_current_holdings() -> list[dict]` — Get stocks currently held in portfolio via HOLDS relationship.
+- `get_holdings_notes(note_types: list[str] | None=None, limit: int=10) -> list[dict]` — Get important notes for portfolio holdings via 1-hop traversal.
 - `get_stress_test_history(symbol: str | None=None, limit: int=5) -> list[dict]` — Get StressTest nodes, optionally filtered by symbol.
 - `get_forecast_history(symbol: str | None=None, limit: int=5) -> list[dict]` — Get Forecast nodes, optionally filtered by symbol.
 - `get_portfolio_holdings_for_linking(limit: int=8) -> list[dict]` — Return portfolio holdings enriched with their latest Report for AI linking.
@@ -864,6 +962,7 @@ MarketContext node operations (KIK-507).
 
 - `merge_market_context(context_date: str, indices: list[dict], semantic_summary: str='', embedding: list[float] | None=None) -> bool` — Create/update a MarketContext node with index snapshots.
 - `merge_market_context_full(context_date: str, indices: list[dict], grok_research: dict | None=None, semantic_summary: str='', embedding: list[float] | None=None) -> bool` — Create MarketContext with semantic sub-nodes (KIK-413).
+- `merge_theme_trend(theme: str, date: str, confidence: float=0.0, reason: str='', rank: int=0, region: str='') -> bool` — Save a theme trend detection to Neo4j.
 
 ### src.data.graph_store.note
 
@@ -885,6 +984,7 @@ Portfolio, Trade, HealthCheck, Forecast, StressTest node operations (KIK-507).
 - `get_held_symbols() -> list[str]` — Return symbols currently held in portfolio via HOLDS relationship.
 - `merge_stress_test(test_date: str, scenario: str, portfolio_impact: float, symbols: list[str], var_95: float=0, var_99: float=0, semantic_summary: str='', embedding: list[float] | None=None) -> bool` — Create a StressTest node and STRESSED relationships to stocks.
 - `merge_forecast(forecast_date: str, optimistic: float, base: float, pessimistic: float, symbols: list[str], total_value_jpy: float=0, semantic_summary: str='', embedding: list[float] | None=None) -> bool` — Create a Forecast node and FORECASTED relationships to stocks.
+- `sync_stock_full(symbol: str, client=None, csv_path: str='') -> dict` — Single entry point for complete Stock + Trade Neo4j sync (KIK-555).
 
 ### src.data.graph_store.research
 
@@ -904,7 +1004,7 @@ Stock, Screen, Report node operations (KIK-507).
 - `merge_report_full(report_date: str, symbol: str, score: float, verdict: str, price: float=0, per: float=0, pbr: float=0, dividend_yield: float=0, roe: float=0, market_cap: float=0, semantic_summary: str='', embedding: list[float] | None=None) -> bool` — Extend an existing Report node with full valuation properties (KIK-413).
 - `tag_theme(symbol: str, theme: str) -> bool` — Tag a stock with a theme.
 - `merge_watchlist(name: str, symbols: list[str], semantic_summary: str='', embedding: list[float] | None=None) -> bool` — Create a Watchlist node and BOOKMARKED relationships to stocks.
-- `get_stock_history(symbol: str) -> dict` — Get all graph relationships for a stock.
+- `get_stock_history(symbol: str) -> dict` — Get all graph relationships for a stock (KIK-573: single query).
 
 ### src.data.grok_client._common
 
@@ -942,11 +1042,6 @@ Stock-related Grok API functions: search_stock_deep, search_x_sentiment.
 - `search_x_sentiment(symbol: str, company_name: str='', timeout: int=30, context: str='') -> dict` — Search X for stock sentiment using Grok API.
 - `search_stock_deep(symbol: str, company_name: str='', timeout: int=30, context: str='') -> dict` — Deep research on a stock via X and web search.
 
-### src.data.grok_context
-
-Backward-compatible shim (KIK-517). Real module: src.data.context.grok_context
-
-
 ### src.data.history._helpers
 
 Internal helpers for history store (KIK-512 split).
@@ -961,21 +1056,68 @@ History store load/query functions (KIK-512 split).
 
 ### src.data.history.save
 
-History store save functions (KIK-512 split).
+History store save functions — re-export shim (KIK-578).
 
-- `save_screening(preset: str, region: str, results: list[dict], sector: str | None=None, theme: str | None=None, base_dir: str='data/history') -> str` — Save screening results to JSON.
-- `save_report(symbol: str, data: dict, score: float, verdict: str, base_dir: str='data/history') -> str` — Save a stock report to JSON.
-- `save_trade(symbol: str, trade_type: str, shares: int, price: float, currency: str, date_str: str, memo: str='', base_dir: str='data/history', sell_price: Optional[float]=None, realized_pnl: Optional[float]=None, pnl_rate: Optional[float]=None, hold_days: Optional[int]=None, cost_price: Optional[float]=None) -> str` — Save a trade record to JSON.
+
+### src.data.history.save_health
+
+Save health check results to history (KIK-578 split from save.py).
+
 - `save_health(health_data: dict, base_dir: str='data/history') -> str` — Save health check results to JSON.
-- `save_research(research_type: str, target: str, result: dict, base_dir: str='data/history') -> str` — Save research results to JSON (KIK-405).
-- `save_market_context(context: dict, base_dir: str='data/history') -> str` — Save market context snapshot to JSON (KIK-405).
+
+### src.data.history.save_misc
+
+Save stress test and forecast results to history (KIK-578 split from save.py).
+
 - `save_stress_test(scenario: str, symbols: list[str], portfolio_impact: float, per_stock_impacts: list[dict] | None=None, var_result: dict | None=None, high_correlation_pairs: list | None=None, concentration: dict | None=None, recommendations: list | None=None, base_dir: str='data/history') -> str` — Save stress test results to JSON (KIK-428).
 - `save_forecast(positions: list[dict], total_value_jpy: float=0, base_dir: str='data/history') -> str` — Save forecast results to JSON (KIK-428).
 
-### src.data.history_store
+### src.data.history.save_report
 
-Backward-compatible shim (KIK-517). Real module: src.data.history
+Save report results to history (KIK-578 split from save.py).
 
+- `save_report(symbol: str, data: dict, score: float, verdict: str, base_dir: str='data/history') -> str` — Save a stock report to JSON.
+
+### src.data.history.save_research
+
+Save research and market context results to history (KIK-578 split from save.py).
+
+- `save_research(research_type: str, target: str, result: dict, base_dir: str='data/history') -> str` — Save research results to JSON (KIK-405).
+- `save_market_context(context: dict, base_dir: str='data/history') -> str` — Save market context snapshot to JSON (KIK-405).
+
+### src.data.history.save_screen
+
+Save screening results to history (KIK-578 split from save.py).
+
+- `save_screening(preset: str, region: str, results: list[dict], sector: str | None=None, theme: str | None=None, base_dir: str='data/history') -> str` — Save screening results to JSON.
+
+### src.data.history.save_trade
+
+Save trade records to history (KIK-578 split from save.py).
+
+- `save_trade(symbol: str, trade_type: str, shares: int, price: float, currency: str, date_str: str, memo: str='', base_dir: str='data/history', sell_price: Optional[float]=None, realized_pnl: Optional[float]=None, pnl_rate: Optional[float]=None, hold_days: Optional[int]=None, cost_price: Optional[float]=None, stock_info: Optional[dict]=None) -> str` — Save a trade record to JSON.
+
+### src.data.lesson_community
+
+Lesson community classification and query (KIK-571).
+
+- `classify_lesson(content: str='', trigger: str='') -> str` — Classify a lesson into a thematic community.
+- `merge_lesson_community(note_id: str, community_name: str) -> bool` — Create LessonCommunity node and CATEGORIZED_AS relationship.
+- `get_lessons_by_theme(theme: str, limit: int=5) -> list[dict]` — Get lessons belonging to a specific LessonCommunity.
+- `get_all_lesson_communities() -> list[dict]` — Get all LessonCommunity nodes with their lesson counts.
+- `infer_theme_from_input(user_input: str) -> Optional[str]` — Infer the most relevant LessonCommunity from user input.
+
+### src.data.lesson_conflict
+
+Unified lesson conflict detection engine (KIK-570).
+
+- `tokenize(text: str) -> list[str]` — Tokenize text into words, handling CJK characters.
+- `keyword_similarity(text_a: str, text_b: str) -> float` — Compute Jaccard similarity using CJK-aware tokenization.
+- `extract_trigger(lesson: dict) -> str` — Extract trigger from lesson, falling back to content parsing.
+- `extract_action(lesson: dict) -> str` — Extract expected_action from lesson, falling back to content parsing.
+- `embedding_similarity(text_a: str, text_b: str) -> Optional[float]` — Compute cosine similarity via TEI embeddings. Returns None if unavailable.
+- `find_conflicts(new_lesson: dict, existing_lessons: list[dict], similarity_threshold: float=0.5, max_results: int=5) -> list[dict]` — Detect conflicts between a new lesson and existing lessons.
+- `find_conflict_pairs(lessons: list[dict]) -> dict[str, str]` — Find lesson IDs with potential contradictions.
 
 ### src.data.linear_client (KIK-472)
 
@@ -990,24 +1132,23 @@ Linear API client for action item management (KIK-472).
 
 Note manager -- dual-write to JSON files and Neo4j (KIK-397, KIK-429).
 
-- `save_note(symbol: Optional[str]=None, note_type: str='observation', content: str='', source: str='', category: Optional[str]=None, base_dir: str=_NOTES_DIR, trigger: Optional[str]=None, expected_action: Optional[str]=None) -> dict` — Save a note to JSON file and Neo4j.
+- `save_note(symbol: Optional[str]=None, note_type: str='observation', content: str='', source: str='', category: Optional[str]=None, base_dir: str=_NOTES_DIR, trigger: Optional[str]=None, expected_action: Optional[str]=None, stop_loss: Optional[str]=None, take_profit: Optional[str]=None) -> dict` — Save a note to JSON file and Neo4j.
 - `load_notes(symbol: Optional[str]=None, note_type: Optional[str]=None, category: Optional[str]=None, base_dir: str=_NOTES_DIR) -> list[dict]` — Load notes from JSON files.
+- `check_lesson_conflicts(new_lesson: dict, base_dir: str=_NOTES_DIR, similarity_threshold: float=0.5) -> list[dict]` — Check if a new lesson conflicts with existing lessons (KIK-564/570).
+- `get_exit_rules(symbol: Optional[str]=None, base_dir: str=_NOTES_DIR) -> list[dict]` — Load exit-rule notes, optionally filtered by symbol (KIK-566).
+- `check_exit_rule(symbol: str, pnl_pct: float, base_dir: str=_NOTES_DIR) -> Optional[dict]` — Check if a position has hit any exit-rule threshold (KIK-566).
 - `delete_note(note_id: str, base_dir: str=_NOTES_DIR) -> bool` — Delete a note by ID from JSON files.
 
-### src.data.screen_annotator
+### src.data.user_profile
 
-Backward-compatible shim (KIK-517). Real module: src.data.context.screen_annotator
+User profile settings loader (KIK-599).
 
-
-### src.data.screening_context
-
-Backward-compatible shim (KIK-517). Real module: src.data.context.screening_context
-
-
-### src.data.summary_builder
-
-Backward-compatible shim (KIK-517). Real module: src.data.context.summary_builder
-
+- `get_profile() -> dict` — Load user profile. Returns defaults if file missing.
+- `get_fee(region: str, amount_local: float, is_sell: bool=False) -> dict` — Calculate trading fee for a region and amount.
+- `get_tax_cost(gain_jpy: float) -> dict` — Calculate tax on capital gains.
+- `get_broker_info() -> dict` — Get broker name and account type.
+- `needs_tax_filing() -> bool` — Check if tax filing is required.
+- `reset_cache()` — Clear cached profile (for testing).
 
 ### src.data.yahoo_client._cache
 
@@ -1066,12 +1207,16 @@ EquityQuery-based screening via yf.screen() (KIK-449).
 
 Shared formatting helpers used across all output formatters (KIK-394).
 
+- `fmt_jpy(value: Optional[float]) -> str` — Format a value as Japanese Yen with comma separators.
+- `fmt_usd(value: Optional[float]) -> str` — Format a value as US Dollar.
+- `fmt_currency_value(value: Optional[float], currency: str='JPY') -> str` — Format a value in the appropriate currency format.
 - `fmt_pct(value: Optional[float]) -> str` — Format a decimal ratio as a percentage string (e.g. 0.035 -> '3.50%').
 - `fmt_float(value: Optional[float], decimals: int=2) -> str` — Format a float with the given decimal places, or '-' if None.
 - `fmt_pct_sign(value: Optional[float]) -> str` — Format a decimal ratio as a signed percentage (e.g. -0.12 -> '-12.00%').
 - `fmt_float_sign(value: Optional[float], decimals: int=2) -> str` — Format a float with sign and given decimal places.
 - `build_label(row: dict) -> str` — Build stock label with annotation markers (KIK-418/419).
 - `hhi_bar(hhi: float, width: int=10) -> str` — Render a simple text bar for HHI value (0-1 scale).
+- `render_screening_table(results: list[dict], columns: list[tuple], empty_msg: str='該当銘柄なし', legends: list[str] | None=None) -> str` — Render a screening result table in Markdown (KIK-575).
 
 ### src.output._portfolio_utils
 
@@ -1099,17 +1244,17 @@ Forecast / return-estimate output formatter (KIK-447, split from portfolio_forma
 
 ### src.output.formatter
 
-Output formatters for screening results.
+Output formatters for screening results (KIK-575: unified renderer).
 
 - `format_markdown(results: list[dict]) -> str` — Format screening results as a Markdown table.
-- `format_query_markdown(results: list[dict]) -> str` — Format EquityQuery screening results as a Markdown table.
-- `format_pullback_markdown(results: list[dict]) -> str` — Format pullback screening results as a Markdown table.
-- `format_growth_markdown(results: list[dict]) -> str` — Format growth screening results as a Markdown table.
-- `format_alpha_markdown(results: list[dict]) -> str` — Format alpha signal screening results as a Markdown table.
-- `format_shareholder_return_markdown(results: list[dict]) -> str` — Format shareholder-return screening results as Markdown table.
-- `format_trending_markdown(results: list[dict], market_context: str='') -> str` — Format trending stock screening results as a Markdown table.
-- `format_contrarian_markdown(results: list[dict]) -> str` — Format contrarian screening results as a Markdown table (KIK-504).
-- `format_momentum_markdown(results: list[dict]) -> str` — Format momentum/surge screening results as a Markdown table (KIK-506).
+- `format_query_markdown(results: list[dict]) -> str` — Format EquityQuery screening results with sector column.
+- `format_pullback_markdown(results: list[dict]) -> str` — Format pullback screening results.
+- `format_growth_markdown(results: list[dict]) -> str` — Format growth screening results.
+- `format_alpha_markdown(results: list[dict]) -> str` — Format alpha signal screening results (2-axis scoring).
+- `format_shareholder_return_markdown(results: list[dict]) -> str` — Format shareholder-return screening results.
+- `format_trending_markdown(results: list[dict], market_context: str='') -> str` — Format trending stock screening results.
+- `format_contrarian_markdown(results: list[dict]) -> str` — Format contrarian screening results (3-axis scoring).
+- `format_momentum_markdown(results: list[dict]) -> str` — Format momentum/surge screening results.
 - `format_auto_theme_header(themes: list[dict], skipped: list[dict] | None=None) -> str` — Format Grok trending themes header (KIK-440).
 
 ### src.output.health_formatter (KIK-469 P2: stock/ETFテーブル分離)

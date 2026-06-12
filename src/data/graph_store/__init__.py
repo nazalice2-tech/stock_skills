@@ -65,12 +65,14 @@ from src.data.graph_store.portfolio import (  # noqa: F401
     merge_stress_test,
     merge_trade,
     sync_portfolio,
+    sync_stock_full,
 )
 
-# --- market.py: MarketContext + sub-nodes ---
+# --- market.py: MarketContext + sub-nodes + ThemeTrend (KIK-603) ---
 from src.data.graph_store.market import (  # noqa: F401
     merge_market_context,
     merge_market_context_full,
+    merge_theme_trend,
 )
 
 # --- note.py: Note, ActionItem ---

@@ -37,16 +37,19 @@ from src.data.graph_query.research import (  # noqa: F401
 # --- Portfolio/Trade/Forecast queries ---
 from src.data.graph_query.portfolio import (  # noqa: F401
     get_current_holdings,
+    get_holdings_notes,
     get_stress_test_history,
     get_forecast_history,
     get_portfolio_holdings_for_linking,
     vector_search,
 )
 
-# --- Market/Events queries ---
+# --- Market/Events/ThemeTrend queries ---
 from src.data.graph_query.market import (  # noqa: F401
     get_recent_market_context,
     get_upcoming_events,
+    get_theme_trends,
+    get_theme_trend_diff,
 )
 
 # --- ActionItem queries ---
@@ -61,14 +64,17 @@ from src.data.graph_query.proactive import (  # noqa: F401
     get_concern_notes,
 )
 
-# --- Community detection (KIK-547/549/550) ---
-from src.data.graph_query.community import (  # noqa: F401
+# --- Community detection (KIK-547/549/550/569, KIK-578 split) ---
+from src.data.graph_query.community_detect import (  # noqa: F401
     detect_communities,
     discover_hidden_themes,
+    label_community,
+)
+from src.data.graph_query.community_query import (  # noqa: F401
     get_communities,
+    get_community_lessons,
     get_stock_community,
     get_similar_stocks,
-    label_community,
     update_stock_community,
 )
 

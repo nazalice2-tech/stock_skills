@@ -13,7 +13,7 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 
-from scripts.common import try_import, HAS_HISTORY_STORE, HAS_GRAPH_QUERY as _HAS_GQ, print_context, print_suggestions
+from scripts.common import try_import, HAS_HISTORY_STORE, HAS_GRAPH_QUERY as _HAS_GQ, HAS_GRAPH_STORE as _HAS_GS, print_context, print_suggestions
 from src.data import yahoo_client
 from src.core.screening.screener import ValueScreener
 from src.core.screening.screener_registry import (
@@ -27,17 +27,21 @@ from src.markets.asean import ASEANMarket
 # Module availability from common.py (KIK-448); import specific functions when available
 HAS_HISTORY = HAS_HISTORY_STORE
 if HAS_HISTORY:
-    from src.data.history_store import save_screening
+    from src.data.history import save_screening
 
 HAS_GRAPH_QUERY = _HAS_GQ
 if HAS_GRAPH_QUERY:
     from src.data.graph_query import get_screening_frequency
 
-HAS_ANNOTATOR, _an = try_import("src.data.screen_annotator", "annotate_results")
+HAS_GRAPH_STORE = _HAS_GS
+if HAS_GRAPH_STORE:
+    from src.data.graph_store import merge_theme_trend
+
+HAS_ANNOTATOR, _an = try_import("src.data.context.screen_annotator", "annotate_results")
 if HAS_ANNOTATOR: annotate_results = _an["annotate_results"]
 
 HAS_SCREENING_CTX, _sctx = try_import(
-    "src.data.screening_context", "get_screening_graph_context"
+    "src.data.context.screening_context", "get_screening_graph_context"
 )
 if HAS_SCREENING_CTX:
     get_screening_graph_context = _sctx["get_screening_graph_context"]
@@ -272,6 +276,23 @@ def run_auto_theme_mode(args):
     if not active_themes:
         print("有効なテーマが見つかりませんでした（すべて未対応テーマ）。")
         return
+
+    # Save theme trends to Neo4j (KIK-603)
+    if HAS_GRAPH_STORE:
+        try:
+            from datetime import date as _date
+            today = _date.today().isoformat()
+            for i, t in enumerate(active_themes):
+                merge_theme_trend(
+                    theme=t["theme"],
+                    date=today,
+                    confidence=t.get("confidence", 0.0),
+                    reason=t.get("reason", ""),
+                    rank=i + 1,
+                    region=region_key,
+                )
+        except Exception:
+            pass  # graceful degradation
 
     # Screen each theme using registry (KIK-514)
     spec = _registry.get(args.preset)

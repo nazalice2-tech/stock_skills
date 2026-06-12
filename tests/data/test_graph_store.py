@@ -82,8 +82,8 @@ class TestSchema:
     def test_init_schema_success(self, gs_with_driver):
         gs, _, session = gs_with_driver
         assert gs.init_schema() is True
-        # 23 constraints + 18 indexes + 10 vector indexes = 51 (KIK-414/420/428/472/547)
-        assert session.run.call_count == 51
+        # 25 constraints + 20 indexes + 10 vector indexes = 55 (KIK-414/420/428/472/547/571/603)
+        assert session.run.call_count == 55
 
     def test_init_schema_no_driver(self):
         import src.data.graph_store as gs
@@ -283,18 +283,21 @@ class TestGetStockHistory:
 
     def test_get_stock_history_success(self, gs_with_driver):
         gs, _, session = gs_with_driver
-        # Mock session.run to return empty results for each query
-        session.run.return_value = iter([])
+        # KIK-573: single query returning all collections
+        from unittest.mock import MagicMock
+        record = MagicMock()
+        record.__getitem__ = lambda s, k: {
+            "screens": [], "reports": [], "trades": [],
+            "health_checks": [], "notes": [], "themes": [],
+            "researches": [],
+        }[k]
+        session.run.return_value.single.return_value = record
         result = gs.get_stock_history("7203.T")
         assert "screens" in result
-        assert "reports" in result
-        assert "trades" in result
-        assert "health_checks" in result
-        assert "notes" in result
         assert "themes" in result
         assert "researches" in result
-        # 7 queries: screens, reports, trades, health_checks, notes, themes, researches
-        assert session.run.call_count == 7
+        # KIK-573: 1 query instead of 7
+        assert session.run.call_count == 1
 
     def test_get_stock_history_error(self, gs_with_driver):
         gs, driver, _ = gs_with_driver

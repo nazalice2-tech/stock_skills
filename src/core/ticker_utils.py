@@ -84,6 +84,84 @@ SUFFIX_TO_CURRENCY = {
 }
 
 
+# Suffix -> lot size (minimum tradable shares) mapping
+# US stocks (no suffix) = 1 share; most Asian markets = 100 shares
+SUFFIX_TO_LOT_SIZE: dict[str, int] = {
+    ".T": 100,       # Japan (単元株)
+    ".SI": 100,      # Singapore
+    ".BK": 100,      # Thailand
+    ".KL": 100,      # Malaysia
+    ".JK": 100,      # Indonesia
+    ".PS": 100,      # Philippines (varies by board lot)
+    ".HK": 100,      # Hong Kong (varies: 100/500/1000/2000)
+    ".KS": 1,        # South Korea
+    ".KQ": 1,        # South Korea
+    ".TW": 1000,     # Taiwan
+    ".TWO": 1000,    # Taiwan
+    ".SS": 100,      # China
+    ".SZ": 100,      # China
+    ".L": 1,         # United Kingdom
+    ".DE": 1,        # Germany
+    ".PA": 1,        # France
+    ".TO": 1,        # Canada
+    ".AX": 1,        # Australia
+    ".SA": 100,      # Brazil
+    ".NS": 1,        # India
+    ".BO": 1,        # India
+}
+
+
+def get_lot_size(symbol: str) -> int:
+    """Get minimum tradable lot size for a symbol.
+
+    Returns 1 for US stocks (no suffix), otherwise looks up the suffix.
+    """
+    if is_cash(symbol):
+        return 1
+    for suffix, lot in SUFFIX_TO_LOT_SIZE.items():
+        if symbol.upper().endswith(suffix.upper()):
+            return lot
+    # No suffix = US stock = 1 share
+    return 1
+
+
+def lot_cost(symbol: str, price: float) -> float:
+    """Calculate the cost of 1 lot (minimum tradable unit).
+
+    Example: 7751.T at ¥4,370 -> 100 * 4370 = ¥437,000
+    """
+    return get_lot_size(symbol) * price
+
+
+def round_to_lot_size(shares: int, symbol: str) -> int:
+    """Round shares to the nearest valid lot size multiple.
+
+    For lot_size=1 (e.g. US stocks), returns shares unchanged.
+    Uses Python's built-in round() (banker's rounding at midpoints).
+    """
+    lot = get_lot_size(symbol)
+    if lot <= 1:
+        return shares
+    return round(shares / lot) * lot
+
+
+def validate_lot_size(shares: int, symbol: str) -> None:
+    """Validate that shares is a valid multiple of the lot size.
+
+    Raises ValueError with the nearest valid amount for lot_size > 1.
+    For lot_size=1, always passes.
+    """
+    lot = get_lot_size(symbol)
+    if lot <= 1:
+        return
+    if shares % lot != 0:
+        nearest = round_to_lot_size(shares, symbol)
+        raise ValueError(
+            f"{symbol}は{lot}株単位で売買する必要があります。"
+            f"{shares}株は不正です（最も近い有効株数: {nearest}株）"
+        )
+
+
 def cash_currency(symbol: str) -> str:
     """Extract currency from cash symbol (e.g., 'JPY.CASH' -> 'JPY')."""
     return symbol.upper().replace(".CASH", "")

@@ -24,7 +24,7 @@
 
 ## テスト
 
-- `python3 -m pytest tests/ -q` で全テスト実行（約2974テスト、~20秒）
+- `python3 -m pytest tests/ -q` で全テスト実行（約3287テスト、~20秒）
 - `tests/conftest.py` に共通フィクスチャ: `stock_info_data`, `stock_detail_data`, `price_history_df`, `mock_yahoo_client`
 - `tests/conftest.py` に autouse `_block_external_io` フィクスチャ: Neo4j/TEI/Grok を全テストで自動モック（KIK-529）。`@pytest.mark.no_auto_mock` でオプトアウト可
 - `tests/fixtures/` に JSON/CSV テストデータ（Toyota 7203.T ベース）
@@ -37,6 +37,30 @@
 
 - ブランチ名: `feature/kik-{NNN}-{short-desc}`
 - ワークツリー: `~/stock-skills-kik{NNN}`
+
+## ファイル構成ガイドライン (KIK-572)
+
+### サイズ上限
+- プロダクションコード: 400行以下推奨、500行で分割検討
+- テスト: 600行以下推奨
+- スクリプト: 300行以下推奨
+
+### 新モジュール配置
+- ドメインロジック → src/core/{screening,portfolio,risk,research,health}/
+- データ取得/保存 → src/data/{yahoo_client,graph_store,graph_query,history,context}/
+- 出力整形 → src/output/
+- 汎用ユーティリティ → src/core/common.py
+- テスト → tests/{core,data,output}/ （src/ と1:1対応）
+
+### 分割基準
+- 1ファイルに3つ以上の独立した責務 → 分割
+- 500行超 → 分割を検討
+- 2つ以上のスキルから参照される共通ロジック → src/core/ に昇格
+
+### 後方互換パターン（shim）
+- 分割時は旧パスに sys.modules リダイレクトの shim を残す
+- shim には DeprecationWarning を追加（KIK-572）
+- 新コードは直接パスを使用
 
 ## ドキュメント自動生成 (KIK-525)
 
