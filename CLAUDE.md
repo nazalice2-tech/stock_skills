@@ -61,6 +61,20 @@ Docs:   docs/ (architecture, neo4j-schema, skill-catalog, api-reference, data-mo
 ```
 <!-- END AUTO-GENERATED ARCHITECTURE -->
 
+## Key Coding Constraints
+
+- **Data access**: always use `src/data/yahoo_client.py` — never import yfinance directly. Functions are module-level, not class-based: `from src.data import yahoo_client` → `yahoo_client.get_stock_info(symbol)`.
+- **New markets**: subclass `src/markets/base.py::Market`.
+- **Graceful degradation in scripts**: use the `HAS_MODULE` pattern — `try/except ImportError` sets a flag (`HAS_HISTORY_STORE` etc.) and the feature is skipped at runtime if unavailable. Shared flags live in `scripts/common.py`; script-specific flags stay local.
+- **Skill script structure**: call `print_context()` at the top and `print_suggestions()` at the bottom (both defined in `scripts/common.py`); they auto-fetch Neo4j context and proactive suggestions with a 10-second timeout and graceful degradation.
+
+## Testing
+
+- All tests: `python3 -m pytest tests/ -q` (~2974 tests, ~20 s)
+- The `_block_external_io` autouse fixture in `tests/conftest.py` automatically mocks Neo4j, TEI, and Grok for every test. Use `@pytest.mark.no_auto_mock` to opt out when a test genuinely needs those services.
+- Common fixtures: `stock_info_data`, `stock_detail_data`, `price_history_df`, `mock_yahoo_client` (monkeypatches `yahoo_client` module functions).
+- Test data (JSON/CSV, Toyota 7203.T base) lives in `tests/fixtures/`.
+
 ## Post-Implementation Rule
 
 **機能実装後は必ずドキュメント・ルールを更新すること。** 詳細は `.claude/rules/workflow.md` の「7. ドキュメント・ルール更新」を参照。

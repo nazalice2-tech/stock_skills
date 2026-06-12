@@ -10,6 +10,12 @@ from src.core.screening.indicators import calculate_value_score
 from src.core.screening.query_builder import build_query
 from src.core.screening.query_screener import QueryScreener
 
+try:
+    from src.data import jquants_client
+    HAS_JQUANTS = True
+except ImportError:
+    HAS_JQUANTS = False
+
 _MAX_WORKERS = int(os.environ.get("SCREEN_MAX_WORKERS", "5"))
 
 
@@ -74,7 +80,12 @@ class ContrarianScreener:
 
         merged = {**stock, **detail}
 
-        ct_result = compute_contrarian_score(hist, merged)
+        # Fetch margin data for JP stocks when J-Quants is configured
+        margin_data: dict = {}
+        if HAS_JQUANTS and jquants_client.is_available():
+            margin_data = jquants_client.get_margin_ratio(symbol)
+
+        ct_result = compute_contrarian_score(hist, merged, margin_data=margin_data)
 
         if ct_result["contrarian_score"] < self._MIN_CONTRARIAN_SCORE:
             return None
@@ -85,6 +96,8 @@ class ContrarianScreener:
         stock["tech_score"] = ct_result["technical"]["score"]
         stock["val_score"] = ct_result["valuation"]["score"]
         stock["fund_score"] = ct_result["fundamental"]["score"]
+        stock["margin_score"] = ct_result["margin"]["score"]
+        stock["margin_ratio"] = ct_result["margin"].get("margin_ratio")
         stock["rsi"] = ct_result["technical"].get("rsi")
         stock["sma200_deviation"] = ct_result["technical"].get("sma200_deviation")
         stock["bb_position"] = ct_result["technical"].get("bb_position")

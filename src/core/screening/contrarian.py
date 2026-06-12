@@ -268,6 +268,45 @@ def compute_fundamental_divergence(stock_data: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# 4. Margin interest signal (optional, 0-10pt bonus) — JP stocks only
+# ---------------------------------------------------------------------------
+
+def compute_margin_signal(margin_data: dict) -> dict:
+    """Margin interest signal for contrarian scoring (0-10pt max).
+
+    Low margin_ratio (sell > buy) = high short interest = squeeze potential.
+    High margin_ratio (buy >> sell) = crowded long = forced-selling risk.
+
+    Parameters
+    ----------
+    margin_data : dict
+        Output of ``jquants_client.get_margin_ratio()``.
+        Keys: margin_buy, margin_sell, margin_ratio (all float | None).
+    """
+    margin_ratio = margin_data.get("margin_ratio")
+    if margin_ratio is None:
+        return {"score": 0.0, "margin_ratio": None, "details": {}}
+
+    if margin_ratio < 0.5:
+        score = 10.0   # Strongly net-short: prime squeeze candidate
+    elif margin_ratio < 1.0:
+        score = 7.0    # Net-short: meaningful short interest
+    elif margin_ratio < 2.0:
+        score = 3.0    # Balanced to slight long bias: neutral
+    else:
+        score = 0.0    # Crowded long: selling overhang risk
+
+    return {
+        "score": score,
+        "margin_ratio": round(margin_ratio, 2),
+        "details": {
+            "margin_buy": margin_data.get("margin_buy"),
+            "margin_sell": margin_data.get("margin_sell"),
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
 # Composite contrarian score
 # ---------------------------------------------------------------------------
 
@@ -275,20 +314,23 @@ def compute_fundamental_divergence(stock_data: dict) -> dict:
 def compute_contrarian_score(
     hist: pd.DataFrame | None,
     stock_data: dict,
+    margin_data: dict | None = None,
 ) -> dict:
-    """Composite contrarian score (0-100pt, KIK-533: 3-axis only).
+    """Composite contrarian score (0-100pt).
 
-    Technical 40pt + Valuation 30pt + Fundamental 30pt = 100pt.
+    Technical 40pt + Valuation 30pt + Fundamental 30pt + Margin 10pt bonus = 100pt cap.
+    Margin axis is optional (JP stocks only, requires JQUANTS_REFRESH_TOKEN).
 
     Returns dict with:
-        contrarian_score, technical, valuation, fundamental,
+        contrarian_score, technical, valuation, fundamental, margin,
         grade ("A"/"B"/"C"/"D"), is_contrarian (score >= 50).
     """
     tech = compute_technical_contrarian(hist)
     val = compute_valuation_contrarian(stock_data)
     fund = compute_fundamental_divergence(stock_data)
+    margin = compute_margin_signal(margin_data or {})
 
-    total = min(tech["score"] + val["score"] + fund["score"], 100.0)
+    total = min(tech["score"] + val["score"] + fund["score"] + margin["score"], 100.0)
 
     if total >= 70:
         grade = "A"
@@ -304,6 +346,7 @@ def compute_contrarian_score(
         "technical": tech,
         "valuation": val,
         "fundamental": fund,
+        "margin": margin,
         "grade": grade,
         "is_contrarian": total >= 50,
     }

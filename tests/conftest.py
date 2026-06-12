@@ -125,6 +125,16 @@ def _block_external_io(request, monkeypatch):
     # Grok: ensure no API key → functions return EMPTY_* immediately
     monkeypatch.delenv("XAI_API_KEY", raising=False)
 
+    # J-Quants: ensure no refresh token → functions return EMPTY_MARGIN immediately
+    monkeypatch.delenv("JQUANTS_REFRESH_TOKEN", raising=False)
+
     # In-memory cache: clear between tests to prevent cross-test leaks (KIK-531)
     from src.data.yahoo_client._memory_cache import clear_memory_cache
     clear_memory_cache()
+
+    # J-Quants: clear ID token cache between tests
+    try:
+        from src.data import jquants_client
+        jquants_client.clear_id_token_cache()
+    except ImportError:
+        pass
